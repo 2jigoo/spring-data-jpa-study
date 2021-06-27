@@ -20,7 +20,9 @@ import org.springframework.data.repository.query.Param;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 
-public interface MemberRepository extends JpaRepository<Member, Long> {
+
+// 인터페이스이므로 여러 개의 인터페이스 상속 가능
+public interface MemberRepository extends JpaRepository<Member, Long>, MemberRepositoryCustom {
     
     // List<Member> findByUsername(String username);
 

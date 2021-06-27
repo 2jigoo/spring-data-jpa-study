@@ -243,4 +243,12 @@ public class MemberRepositoryTest {
     }
 
 
+    @Test
+    public void callCustom() {
+        // 사용자 정의 레퍼지토리
+        // QueryDsl을 쓸 때 커스텀 레퍼지토리를 쓰면 유용하다.
+        List<Member> list = memberRepository.findMemberCustom();
+    }
+
+
 }
