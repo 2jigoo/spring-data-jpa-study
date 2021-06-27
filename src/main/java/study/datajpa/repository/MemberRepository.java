@@ -4,10 +4,17 @@ package study.datajpa.repository;
 import java.util.Collection;
 import java.util.List;
 
+import javax.persistence.LockModeType;
+import javax.persistence.QueryHint;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import study.datajpa.dto.MemberDto;
@@ -70,14 +77,69 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     /**
      * 페이징
+     * 
+     * - 카운터 쿼리 분리할 수 있다. (기본 쿼리를 쓰면 필요 없는 조인까지 수행한다)
+     * - Sort도 복잡해지는 경우 쿼리 직접 쓰는 게 좋은 경우도 있다.
      */
 
-    // Sort도 복잡해지는 경우 쿼리 직접 쓰는 게 좋은 경우도 있다.
-    // 카운터 쿼리 분리할 수 있다. (기본 쿼리를 쓰면 필요 없는 조인까지 수행한다)
+    
     /* @Query(value = "select m from Member m left join m.team t",
         countQuery = "select count(m.username) from Member m") */
     Page<Member> findByAge(int age, Pageable pageable);
     // Slice<Member> findByAge(int age, Pageable pageable);
 
+
+    /**
+     * @Modifying. 벌크 연산 excuteUpdate() 호출
+     * 영속성 컨텍스트를 무시하고 쿼리 날림.
+     * JPQL은 쿼리 보내고 flush() 한다.
+     */
+    @Modifying(clearAutomatically = true) // 영속성 컨텍스트 clear
+    @Query("update Member m set m.age = m.age + 1 where m.age >= :age")
+    int bulkAddAge(@Param("age") int age);
+
+    // Jdbc, JdbcTemplate, Mybatis로 쿼리 실행한 건 JPA가 인식하지 못한다. flush(), clear() 필요
+
+
+    /**
+     * Fetch 조인
+     * - 지연로딩이 적용되어 있어도 한번에 받아옴.
+     */
+    @Query("select m from Member m left join fetch m.team")
+    List<Member> findMemberFetchJoin();
+
+
+    /**
+     * EntityGraph
+     */
+
+    // JPQL 없이 fetch 조인
+    @Override
+    @EntityGraph(attributePaths = {"team"})
+    List<Member> findAll();
+
+    @EntityGraph(attributePaths = {"team"})
+    @Query("select m from Member m")
+    List<Member> findMemberEntityGraph();
+
+    // @EntityGraph(attributePaths = {"team"})
+    @EntityGraph("Member.all") // namedEntityGraph 지정
+    List<Member> findEntityGraphByUsername(@Param("username") String username);
+
+
+
+    /**
+     * JPA Hint 와 Lock
+     */
+
+     // 아주 중요하고 트래픽이 많은 API에서 한정적으로 적용하는 것을 고려... 성능 테스트를 해서 이점이 클 때만...
+     @QueryHints(value = @QueryHint(name = "org.hibernate.readOnly", value = "true"))
+     Member findReadOnlyByUsername(String username);
+
+     // select for update 기능... optimistic lock 버저닝 메커니즘으로 락...
+     @Lock(LockModeType.PESSIMISTIC_WRITE)
+     List<Member> findLockByUsername(String username);
+
+    
 
 }
