@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -22,7 +23,7 @@ import study.datajpa.entity.Member;
 
 
 // 인터페이스이므로 여러 개의 인터페이스 상속 가능
-public interface MemberRepository extends JpaRepository<Member, Long>, MemberRepositoryCustom {
+public interface MemberRepository extends JpaRepository<Member, Long>, MemberRepositoryCustom, JpaSpecificationExecutor<Member> {
     
     // List<Member> findByUsername(String username);
 
@@ -134,14 +135,28 @@ public interface MemberRepository extends JpaRepository<Member, Long>, MemberRep
      * JPA Hint 와 Lock
      */
 
-     // 아주 중요하고 트래픽이 많은 API에서 한정적으로 적용하는 것을 고려... 성능 테스트를 해서 이점이 클 때만...
-     @QueryHints(value = @QueryHint(name = "org.hibernate.readOnly", value = "true"))
-     Member findReadOnlyByUsername(String username);
+    // 아주 중요하고 트래픽이 많은 API에서 한정적으로 적용하는 것을 고려... 성능 테스트를 해서 이점이 클 때만...
+    @QueryHints(value = @QueryHint(name = "org.hibernate.readOnly", value = "true"))
+    Member findReadOnlyByUsername(String username);
 
-     // select for update 기능... optimistic lock 버저닝 메커니즘으로 락...
-     @Lock(LockModeType.PESSIMISTIC_WRITE)
-     List<Member> findLockByUsername(String username);
+    // select for update 기능... optimistic lock 버저닝 메커니즘으로 락...
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Member> findLockByUsername(String username);
 
     
+    // Projections
+    //  List<UsernameOnlyDto> findProjectionsByUsername(@Param("username") String username);
+    <T> List<T> findProjectionsByUsername(@Param("username") String username, Class<T> type);
 
+
+    // NativeQuery
+    // return type: Objec[], Tuple, DTO
+    @Query(value = "select * from member where username = ?", nativeQuery = true)
+    Member findByNativeQuery(String username);
+
+    @Query(value = "select m.member_id as id, m.username, t.name as teamName from member m left join team t",
+            countQuery = "select count(*) from member",
+            nativeQuery = true)
+    Page<MemberProjection> findByNativeProjection(Pageable pageable);
+     
 }
